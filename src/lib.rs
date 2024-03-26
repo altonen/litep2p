@@ -38,7 +38,7 @@ use crate::{
 
 use multiaddr::{Multiaddr, Protocol};
 use multihash::Multihash;
-use transport::Endpoint;
+use transport::{manager::TransportManagerHandle, Endpoint};
 use types::ConnectionId;
 
 use std::{collections::HashSet, sync::Arc};
@@ -118,8 +118,26 @@ pub struct Litep2p {
     /// Transport manager.
     transport_manager: TransportManager,
 
+    /// Transport manager handle.
+    transport_manager_handle: TransportManagerHandle,
+
     /// Bandwidth sink.
     bandwidth_sink: BandwidthSink,
+}
+
+/// Litep2p handle.
+#[derive(Clone)]
+pub struct Litep2pHandle(TransportManagerHandle);
+
+impl Litep2pHandle {
+    /// Add known address for peer.
+    pub fn add_known_address(
+        &mut self,
+        peer: PeerId,
+        address: impl Iterator<Item = Multiaddr>,
+    ) -> usize {
+        self.0.add_known_address(&peer, address)
+    }
 }
 
 impl Litep2p {
@@ -338,7 +356,7 @@ impl Litep2p {
 
         // enable mdns if the config exists
         if let Some(config) = litep2p_config.mdns.take() {
-            let mdns = Mdns::new(transport_handle, config, listen_addresses.clone())?;
+            let mdns = Mdns::new(transport_handle.clone(), config, listen_addresses.clone())?;
 
             litep2p_config.executor.run(Box::pin(async move {
                 let _ = mdns.start().await;
@@ -372,6 +390,7 @@ impl Litep2p {
             bandwidth_sink,
             listen_addresses,
             transport_manager,
+            transport_manager_handle: transport_handle,
         })
     }
 
@@ -438,6 +457,11 @@ impl Litep2p {
         address: impl Iterator<Item = Multiaddr>,
     ) -> usize {
         self.transport_manager.add_known_address(peer, address)
+    }
+
+    /// Get [`Litep2pHandle`].
+    pub fn litep2p_handle(&self) -> Litep2pHandle {
+        Litep2pHandle(self.transport_manager_handle.clone())
     }
 
     /// Poll next event.
