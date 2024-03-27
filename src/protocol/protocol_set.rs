@@ -374,6 +374,13 @@ impl ProtocolSet {
         peer: PeerId,
         connection_id: ConnectionId,
     ) -> crate::Result<()> {
+        self.mgr_tx
+            .send(TransportManagerEvent::ConnectionClosed {
+                peer,
+                connection: connection_id,
+            })
+            .await?;
+
         let mut futures = self
             .protocols
             .iter()
@@ -394,13 +401,7 @@ impl ProtocolSet {
             }
         }
 
-        self.mgr_tx
-            .send(TransportManagerEvent::ConnectionClosed {
-                peer,
-                connection: connection_id,
-            })
-            .await
-            .map_err(From::from)
+        Ok(())
     }
 }
 
