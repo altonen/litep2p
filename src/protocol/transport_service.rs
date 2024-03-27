@@ -183,7 +183,7 @@ impl TransportService {
                 }
                 None => {
                     self.keep_alive_timeouts.push(Box::pin(async move {
-                        tokio::time::sleep(Duration::from_secs(5)).await;
+                        tokio::time::sleep(Duration::from_secs(10)).await;
                         (peer, connection_id)
                     }));
                     context.secondary = Some(handle);
