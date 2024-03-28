@@ -137,6 +137,7 @@ impl TcpTransport {
         address: Multiaddr,
         dial_addresses: DialAddresses,
         connection_open_timeout: Duration,
+        disable_port_reuse: bool,
     ) -> crate::Result<(Multiaddr, TcpStream)> {
         let (socket_address, _) = TcpListener::get_socket_address(&address)?;
         let remote_address = match socket_address {
@@ -199,19 +200,21 @@ impl TcpTransport {
         }
         socket.set_nonblocking(true)?;
 
-        match dial_addresses.local_dial_address(&remote_address.ip()) {
-            Some(dial_address) => {
-                socket.set_reuse_address(true)?;
-                #[cfg(unix)]
-                socket.set_reuse_port(true)?;
-                socket.bind(&dial_address.into())?;
-            }
-            None => {
-                tracing::debug!(
-                    target: LOG_TARGET,
-                    ?remote_address,
-                    "tcp listener not enabled for remote address, using ephemeral port",
-                );
+        if !disable_port_reuse {
+            match dial_addresses.local_dial_address(&remote_address.ip()) {
+                Some(dial_address) => {
+                    socket.set_reuse_address(true)?;
+                    #[cfg(unix)]
+                    socket.set_reuse_port(true)?;
+                    socket.bind(&dial_address.into())?;
+                }
+                None => {
+                    tracing::debug!(
+                        target: LOG_TARGET,
+                        ?remote_address,
+                        "tcp listener not enabled for remote address, using ephemeral port",
+                    );
+                }
             }
         }
 
@@ -288,15 +291,20 @@ impl Transport for TcpTransport {
         let max_write_buffer_size = self.config.noise_write_buffer_size;
         let connection_open_timeout = self.config.connection_open_timeout;
         let substream_open_timeout = self.config.substream_open_timeout;
+        let disable_port_reuse = self.config.disable_port_reuse;
         let dial_addresses = self.dial_addresses.clone();
         let keypair = self.context.keypair.clone();
 
         self.pending_dials.insert(connection_id, address.clone());
         self.pending_connections.push(Box::pin(async move {
-            let (_, stream) =
-                TcpTransport::dial_peer(address, dial_addresses, connection_open_timeout)
-                    .await
-                    .map_err(|error| (connection_id, error))?;
+            let (_, stream) = TcpTransport::dial_peer(
+                address,
+                dial_addresses,
+                connection_open_timeout,
+                disable_port_reuse,
+            )
+            .await
+            .map_err(|error| (connection_id, error))?;
 
             TcpConnection::open_connection(
                 connection_id,
@@ -367,9 +375,16 @@ impl Transport for TcpTransport {
             .map(|address| {
                 let dial_addresses = self.dial_addresses.clone();
                 let connection_open_timeout = self.config.connection_open_timeout;
+                let disable_port_reuse = self.config.disable_port_reuse;
 
                 async move {
-                    TcpTransport::dial_peer(address, dial_addresses, connection_open_timeout).await
+                    TcpTransport::dial_peer(
+                        address,
+                        dial_addresses,
+                        connection_open_timeout,
+                        disable_port_reuse,
+                    )
+                    .await
                 }
             })
             .collect();

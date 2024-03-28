@@ -67,6 +67,11 @@ pub struct Config {
     /// How long should litep2p wait for a substream to be opened before considering
     /// the substream rejected.
     pub substream_open_timeout: std::time::Duration,
+
+    /// Disable port reuse
+    ///
+    /// By default, port reuse is enabled.
+    pub disable_port_reuse: bool,
 }
 
 impl Default for Config {
@@ -81,6 +86,7 @@ impl Default for Config {
             noise_write_buffer_size: MAX_WRITE_BUFFER_SIZE,
             connection_open_timeout: CONNECTION_OPEN_TIMEOUT,
             substream_open_timeout: SUBSTREAM_OPEN_TIMEOUT,
+            disable_port_reuse: false,
         }
     }
 }
