@@ -153,6 +153,7 @@ impl Connection {
                     notify: NotifyProtocol::No,
                 }) => return self.close_connection(NotifyProtocol::No).await,
                 Some(ConnectionEvent::NotificationReceived { notification }) => {
+                    tracing::debug!(target: "client-nova", "notificaiton received");
                     if let Err(_) = self.notif_tx.send_item((self.peer, notification)) {
                         return self.close_connection(NotifyProtocol::Yes).await;
                     }
@@ -193,6 +194,7 @@ impl Stream for Connection {
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = Pin::into_inner(self);
+        tracing::debug!(target: "client-nova", "poll notif connection handler");
 
         if let Poll::Ready(_) = this.rx.poll_unpin(cx) {
             return Poll::Ready(Some(ConnectionEvent::CloseConnection {
