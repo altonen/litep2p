@@ -199,6 +199,7 @@ impl TcpTransport {
             socket.set_only_v6(true)?;
         }
         socket.set_nonblocking(true)?;
+        socket.set_nodelay(true)?;
 
         if !disable_port_reuse {
             match dial_addresses.local_dial_address(&remote_address.ip()) {

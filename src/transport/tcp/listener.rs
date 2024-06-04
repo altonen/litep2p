@@ -114,6 +114,7 @@ impl TcpListener {
                     },
                 };
 
+                socket.set_nodelay(true).ok()?;
                 socket.set_nonblocking(true).ok()?;
                 socket.set_reuse_address(true).ok()?;
                 #[cfg(unix)]
